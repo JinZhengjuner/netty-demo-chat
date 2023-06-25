@@ -1,10 +1,15 @@
 package cn.itcast.server;
 
+import cn.itcast.message.LoginRequestMessage;
+import cn.itcast.message.LoginResponseMessage;
 import cn.itcast.protocol.MessageCodecSharable;
 import cn.itcast.protocol.ProcotolFrameDecoder;
+import cn.itcast.server.service.UserServiceFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -30,6 +35,21 @@ public class ChatServer {
                     ch.pipeline().addLast(new ProcotolFrameDecoder());
                     ch.pipeline().addLast(LOGGING_HANDLER);
                     ch.pipeline().addLast(MESSAGE_CODEC);
+                    ch.pipeline().addLast(new SimpleChannelInboundHandler<LoginRequestMessage>() {
+                        @Override
+                        protected void channelRead0(ChannelHandlerContext ctx, LoginRequestMessage message) throws Exception {
+                            String username = message.getUsername();
+                            String password = message.getPassword();
+                            boolean login = UserServiceFactory.getUserService().login(username, password);
+                            LoginResponseMessage responseMessage ;
+                            if (login){
+                                 responseMessage = new LoginResponseMessage(true, "登陆成功");
+                            }else {
+                                 responseMessage = new LoginResponseMessage(false, "用户名或密码密错误");
+                            }
+                            ctx.writeAndFlush(responseMessage);
+                        }
+                    });
                 }
             });
             Channel channel = serverBootstrap.bind(8080).sync().channel();
